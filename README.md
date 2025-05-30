@@ -1,7 +1,6 @@
-# projeto-geradorcodigos
 from nicegui import ui
 import os
-import random # implementar os códigos aleatórios para o produto.
+import random
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -37,31 +36,31 @@ if not os.path.exists(ARQUIVO):
         pass
 
 
-def ler_opcoes(arquivo):
+def read(arquivo):
     try:
         with open(arquivo, 'r', encoding='utf-8') as f:
-            opcoes = [linha.strip() for linha in f if linha.strip()]
-        return opcoes
+            opt = [linha.strip() for linha in f if linha.strip()]
+        return opt
     except Exception as e:
         ui.label(f'Erro ao ler {arquivo}: {e}').style('color: red')
         ui.run()
         exit()
 
-cidades_opcoes = ler_opcoes(cidades)
-empresas_opcoes = ler_opcoes(empresas)
-interno_opcoes = ler_opcoes(interno)
-digito_opcoes = ler_opcoes(digito)
+cidades_opt = read(cidades)
+empresas_opt = read(empresas)
+interno_opt = read(interno) + ['Gerar Aleatório']  # Adiciona a opção de gerar aleatório
+digitos_opt = read(digito)
 
-if not cidades_opcoes or not empresas_opcoes or not interno_opcoes or not digito_opcoes:
-    ui.label('Algum arquivo está vazio!').style('color: red')
+if not all([cidades_opt, empresas_opt, interno_opt, digitos_opt]):
+    ui.label('Algum arquivo .txt está vazio!').style('color: red')
 else:
-    cidades_display = [cidades_nomes.get(c, c) for c in cidades_opcoes]
+    # Busca os digitos das cidades numa lista e transforma os em nomes na tabela
+    cidades_display = [cidades_nomes.get(c, c) for c in cidades_opt]
 
     cidade = ui.select(cidades_display, label='Cidade').style('width: 350px; margin-bottom: 8px;')
-    empresa = ui.select(empresas_opcoes, label='Empresa').style('width: 350px; margin-bottom: 8px;')
-    produto = ui.select(interno_opcoes, label='Produto').style('width: 350px; margin-bottom: 16px;')
-    digito = ui.select(digito_opcoes, label='Dígito').style('width: 350px; margin-bottom: 16px;')
-    resultado = ui.label('').style('font-size: 1.5rem; color: #1976d2; margin-top: 24px;')
+    empresa = ui.select(empresas_opt, label='Empresa').style('width: 350px; margin-bottom: 8px;')
+    produto = ui.select(interno_opt, label='Produto').style('width: 350px; margin-bottom: 16px;')
+    digito = ui.select(digitos_opt, label='Dígito').style('width: 350px; margin-bottom: 16px;')
 
     # Função usada para chamar o código da cidade!
     def get_codigo_cidade(nome):
@@ -71,19 +70,27 @@ else:
         return nome
 
     def criar():
-        if not cidade.value or not empresa.value or not produto.value or not digito.value:
+        if not all([cidade.value, empresa.value, produto.value, digito.value]):
             ui.notify('Selecione todas as opções!', color='warning')
             return
         try:
             codigo_cidade = get_codigo_cidade(cidade.value)
-            codigo_completo = f'{codigo_cidade}{empresa.value}{produto.value}{digito.value}'
+
+            if produto.value == 'Gerar Aleatório':
+                produto.valor = f"A{random.randint(1, 100):03}"
+            else :
+                produto.valor = produto.value
+
+            codigo_completo = f'{codigo_cidade}{empresa.value}{produto.valor}{digito.value}'
+
+            #Verifica se o código já exisete
             with open(ARQUIVO, 'a', encoding='utf-8') as f:
-                f.write(f'{codigo_cidade},{empresa.value},{produto.value},{digito.value},{codigo_completo}\n')
+                f.write(f'{codigo_cidade},{empresa.value},{produto.valor},{digito.value},{codigo_completo}\n')
             ui.notify(f'Registro criado! Código: {codigo_completo}', color='positive')
-            buscar_codigos()  # Atualiza a tabela automaticamente
+            exibir_codigos()  # Atualiza a tabela automaticamente
         except Exception as e:
             ui.notify(f'Erro ao salvar: {e}', color='negative')
-
+            
     ui.button('Criar', on_click=criar).props('color=primary')
 
     tabela = ui.table(
@@ -95,14 +102,16 @@ else:
             {'name': 'digito', 'label': 'Dígito', 'field': 'digito', 'align': 'left'},
         ],
         rows=[],
-        row_key='id',
     ).style(
         'font-size: 1.2rem; min-width: 1300px; margin-top: 10px;'
         'padding: 8px 24px;'
     ).props('dense square flat bordered wrap-cells')
 
-    def buscar_codigos():
+
+# Função para buscar os códigos já criados e exibi-los na tabela
+    def exibir_codigos():
         linhas = []
+
         if os.path.exists(ARQUIVO):
             with open(ARQUIVO, 'r', encoding='utf-8') as f:
                 for idx, linha in enumerate(f):
@@ -120,8 +129,6 @@ else:
         tabela.rows = linhas
         tabela.update()
 
-    ui.button('Buscar códigos criados', on_click=buscar_codigos).props('color=secondary')
-
-    buscar_codigos() # Busca os códigos já ao iniciar a pagina
+    exibir_codigos() # Busca os códigos já ao iniciar a pagina
 
 ui.run()
