@@ -60,7 +60,7 @@ else:
     cidade = ui.select(cidades_display, label='Cidade').style('width: 350px; margin-bottom: 8px;')
     empresa = ui.select(empresas_opt, label='Empresa').style('width: 350px; margin-bottom: 8px;')
     produto = ui.select(interno_opt, label='Produto').style('width: 350px; margin-bottom: 16px;')
-    digito = ui.select(digitos_opt, label='Dígito').style('width: 350px; margin-bottom: 16px;')
+    digito = ui.select(digitos_opt, label='Categoria').style('width: 350px; margin-bottom: 16px;')
 
     # Função usada para chamar o código da cidade!
     def get_codigo_cidade(nome):
@@ -76,12 +76,21 @@ else:
         try:
             codigo_cidade = get_codigo_cidade(cidade.value)
 
+            # Verifica se o produto é "Gerar Aleatório" e gera um código aleatório
             if produto.value == 'Gerar Aleatório':
                 produto.valor = f"A{random.randint(1, 100):03}"
             else :
                 produto.valor = produto.value
 
             codigo_completo = f'{codigo_cidade}{empresa.value}{produto.valor}{digito.value}'
+
+            if os.path.exists(ARQUIVO):
+                with open(ARQUIVO, 'r', encoding='utf-8') as f:
+                    for linha in f:
+                        partes = linha.strip().split(',')
+                        if len(partes) >= 5 and partes[4] == codigo_completo:
+                            ui.notify('Código já existe! Escolha outra combinação.', color='negative')
+                            return
 
             #Verifica se o código já exisete
             with open(ARQUIVO, 'a', encoding='utf-8') as f:
@@ -93,22 +102,36 @@ else:
             
     ui.button('Criar', on_click=criar).props('color=primary')
 
+    with ui.row():
+        def row_builder(row):
+            with ui.row().style('align-items: center;'):
+                ui.label(row['codigo']).style('min-width: 180px;')
+                ui.button(
+                'Copiar',
+                on_click=lambda codigo=row['codigo']: (
+                    ui.run_javascript(f'navigator.clipboard.writeText("{codigo}")'),
+                    ui.notify('Código copiado!')
+                ),
+                color='accent'
+            ).style('margin-left: 8px;')
+
     tabela = ui.table(
         columns=[
             {'name': 'codigo', 'label': 'Código Completo', 'field': 'codigo', 'align': 'left'},
             {'name': 'cidade', 'label': 'Cidade', 'field': 'cidade', 'align': 'left'},
             {'name': 'empresa', 'label': 'Empresa', 'field': 'empresa', 'align': 'left'},
             {'name': 'produto', 'label': 'Produto', 'field': 'produto', 'align': 'left'},
-            {'name': 'digito', 'label': 'Dígito', 'field': 'digito', 'align': 'left'},
+            {'name': 'digito', 'label': 'Categoria', 'field': 'digito', 'align': 'left'},
         ],
         rows=[],
+        row_builder=row_builder,
     ).style(
         'font-size: 1.2rem; min-width: 1300px; margin-top: 10px;'
         'padding: 8px 24px;'
     ).props('dense square flat bordered wrap-cells')
+    #Cria o botão para copiar cada código da tabela
 
-
-# Função para buscar os códigos já criados e exibi-los na tabela
+    # Função para buscar os códigos já criados e exibi-los na tabela
     def exibir_codigos():
         linhas = []
 
@@ -124,11 +147,10 @@ else:
                             'cidade': cidade_nome,
                             'empresa': partes[1],
                             'produto': partes[2],
-                            'digito': partes[3],
-                        })
+                            'digito': partes[3],})
         tabela.rows = linhas
         tabela.update()
 
-    exibir_codigos() # Busca os códigos já ao iniciar a pagina
+    exibir_codigos()
 
 ui.run()
